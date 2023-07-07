@@ -8,6 +8,22 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include <WiFi.h>
+#include <WebServer.h>
+
+
+const char* ssid = "Cars";
+const char* password = "nissanv16";
+
+WebServer server(80);
+
+
+String data = "";
+
+void handleRequest() {
+  data = server.arg("message");
+  server.send(200, "text/plain", "Mensaje recibido: " + data);
+}
 //define the pins used by the LoRa transceiver module
 #define SCK 5
 #define MISO 19
@@ -28,7 +44,7 @@
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64 // OLED display height, in pixels
 
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RST);
+//Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RST);
 
 String LoRaData;
 
@@ -36,27 +52,28 @@ void setup() {
   //initialize Serial Monitor
   Serial.begin(115200);
   
+ WiFi.softAP(ssid, password);
+  server.on("/enviar", handleRequest);
+  server.begin();
+  Serial.println("Servidor HTTP iniciado");
+
+
   //reset OLED display via software
-  pinMode(OLED_RST, OUTPUT);
-  digitalWrite(OLED_RST, LOW);
+   //pinMode(OLED_RST, OUTPUT);
+  //digitalWrite(OLED_RST, LOW);
   delay(20);
-  digitalWrite(OLED_RST, HIGH);
+ // digitalWrite(OLED_RST, HIGH);
   
   //initialize OLED
-  Wire.begin(OLED_SDA, OLED_SCL);
+  /*Wire.begin(OLED_SDA, OLED_SCL);
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3c, false, false)) { // Address 0x3C for 128x32
     Serial.println(F("SSD1306 allocation failed"));
     for(;;); // Don't proceed, loop forever
   }
 
-  display.clearDisplay();
-  display.setTextColor(WHITE);
-  display.setTextSize(1);
-  display.setCursor(0,0);
-  display.print("LORA RECEIVER ");
-  display.display();
+*/
 
-  Serial.println("LoRa Receiver Test");
+  Serial.println("LoRa send");
   
   //SPI LoRa pins
   SPI.begin(SCK, MISO, MOSI, SS);
@@ -68,43 +85,42 @@ void setup() {
     while (1);
   }
   Serial.println("LoRa Initializing OK!");
-  display.setCursor(0,10);
-  display.println("LoRa Initializing OK!");
-  display.display();  
+  //display.setCursor(0,10);
+ // display.println("LoRa Initializing OK!");
+ // display.display();  
 }
 
 void loop() {
 
+
+   server.handleClient();
+  if (data != "") {
+    Serial.println(data);
+    data = ""; // Limpiar la variable para el próximo mensaje
+  }
+
   //try to parse packet
-  int packetSize = LoRa.parsePacket();
-  if (packetSize) {
+ // int packetSize = LoRa.parsePacket();
+  //if (packetSize) {
     //received a packet
-    Serial.print("Paquete recibido ");
+   // Serial.print("Paquete recibido ");
 
     //read packet
-    while (LoRa.available()) {
+   /* while (LoRa.available()) {
       LoRaData = LoRa.readString();
       Serial.print(LoRaData);
 
-    }
+    }*/
 
     //print RSSI of packet
     int rssi = LoRa.packetRssi();
-    Serial.print(" RSSI ");    
+    Serial.print("RSSI ");    
     Serial.println(rssi);
 
-   // Dsiplay information
-   display.clearDisplay();
-   display.setCursor(0,0);
-   display.print("Druminot");
-   display.setCursor(0,20);
-   display.print("Received packet:");
-   display.setCursor(0,30);
-   display.print(LoRaData);
-   display.setCursor(0,40);
-   display.print("RSSI:");
-   display.setCursor(30,40);
-   display.print(rssi);
-   display.display();   
-  }
+
+  LoRa.beginPacket();
+  LoRa.print(data);
+  LoRa.endPacket();
+  
+  
 }
